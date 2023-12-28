@@ -138,8 +138,8 @@ def main():
 
   with st.sidebar:
     st.session_state.choose = st.selectbox(
-        "MENU", ["로그인", "랭킹", "관리자 페이지"]
-        if st.session_state.admin else ["로그인", "랭킹"])
+        "MENU", ["로그인", "랭킹", "가상 주식 투자", "관리자 페이지"]
+        if st.session_state.admin else ["로그인", "랭킹", "가상 주식 투자"])
 
   if st.session_state.choose == "로그인":
     if st.session_state.user is None:
@@ -152,7 +152,7 @@ def main():
           st.error('학번과 이름을 모두 입력해주세요.')
         else:
           if login_id == '83028' and login_pw == 'enter':
-            st.session_state.user = {'id': '12429', 'name': 'enteradmin'}
+            st.session_state.user = {'id': '83028', 'name': 'enter'}
             st.session_state.admin = True
             st.session_state.choose = "관리자 페이지"
             st.success('관리자 로그인 성공!')
@@ -262,6 +262,53 @@ def main():
   elif st.session_state.user is None:
     st.error('서비스를 이용하시려면 먼저 로그인해주세요.')
 
+  else:
+    if st.session_state.choose == "가상 주식 투자":
+      st.subheader("가상 주식 투자")
+
+      cur.execute('SELECT * FROM stocks')
+      stocks = cur.fetchall()
+      user_id = st.session_state.user['id']
+      for i in range(0, len(stocks), 2):
+        col1, col2 = st.columns(2)
+        stock_name = stocks[i][0]
+
+        with col1.expander(stock_name):
+          st.write(f'현재 주가: {stocks[i][1]}')
+          st.write(f'이전 주가: {stocks[i][2]}')
+
+          cur.execute(
+              'SELECT quantity FROM user_stocks WHERE user_id=? AND stock_name=?',
+              (user_id, stock_name))
+          user_stock = cur.fetchone()
+          st.write(
+              f'보유 주식 수: {user_stock["quantity"] if user_stock is not None else 0}'
+          )
+          quantity = st.number_input('수량', step=1, key=f'seulchankim_{i}')
+          if st.button('매수', key=f'buy_{i}'):
+            trade_stock(st.session_state.user, stock_name, quantity, 'buy')
+          if st.button('매도', key=f'sell_{i}'):
+            trade_stock(st.session_state.user, stock_name, quantity, 'sell')
+
+        if i + 1 < len(stocks):
+          stock_name = stocks[i + 1][0]
+          with col2.expander(stock_name):
+            st.write(f'현재 주가: {stocks[i+1][1]}')
+            st.write(f'이전 주가: {stocks[i+1][2]}')
+
+            cur.execute(
+                'SELECT quantity FROM user_stocks WHERE user_id=? AND stock_name=?',
+                (user_id, stock_name))
+            user_stock = cur.fetchone()
+            st.write(
+                f'보유 주식 수: {user_stock["quantity"] if user_stock is not None else 0}'
+            )
+            quantity = st.number_input('수량', step=1, key=f'seulchankim_{i+1}')
+            if st.button('매수', key=f'buy_{i+1}'):
+              trade_stock(st.session_state.user, stock_name, quantity, 'buy')
+            if st.button('매도', key=f'sell_{i+1}'):
+              trade_stock(st.session_state.user, stock_name, quantity, 'sell')
+
   con.close()
   user = st.session_state.user
   if user is not None:
@@ -283,6 +330,7 @@ def main():
     else:
       st.sidebar.markdown(f"**{user_name}님 환영합니다!**")
       st.sidebar.markdown(f"보유 포인트: {user_point}")
+      st.sidebar.markdown(f"보유 주식 가치: {user_stockvalue}")
   else:
     st.sidebar.markdown("로그인이 필요합니다.")
 
@@ -290,3 +338,31 @@ def main():
 main()
 
 con.close()
+
+
+# 주가를 1분마다 랜덤하게 바꾸는 스레드
+def change_stock_price():
+  while True:
+    con = sqlite3.connect("database.db", check_same_thread=False)
+    cur = con.cursor()
+    cur.execute('SELECT * FROM stocks')
+    stocks = cur.fetchall()
+    for stock in stocks:
+      stock_name = stock[0]  # 'name' column
+      current_price = stock[1]  # 'current_price' column
+      previous_price = current_price
+      change_ratio = random.uniform(-0.1, 0.15)
+      current_price += current_price * change_ratio
+      cur.execute(
+          '''
+          UPDATE stocks
+          SET current_price = ?, previous_price = ?
+          WHERE name = ?
+          ''', (current_price, previous_price, stock_name))
+    con.commit()
+    con.close()
+    time.sleep(60)
+
+
+# 스레드 시작
+threading.Thread(target=change_stock_price).start()
