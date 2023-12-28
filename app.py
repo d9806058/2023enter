@@ -152,7 +152,7 @@ def main():
           st.error('학번과 이름을 모두 입력해주세요.')
         else:
           if login_id == '83028' and login_pw == 'enter':
-            st.session_state.user = {'id': '83028', 'name': 'enter'}
+            st.session_state.user = {'id': '12429', 'name': 'enteradmin'}
             st.session_state.admin = True
             st.session_state.choose = "관리자 페이지"
             st.success('관리자 로그인 성공!')
