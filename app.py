@@ -1,117 +1,8 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
-import threading
 import random
 import time
-
-con = sqlite3.connect('database.db')
-con.row_factory = sqlite3.Row
-cur = con.cursor()
-
-# 주식 데이터를 저장할 데이터베이스 테이블 생성
-cur.execute('''
-  CREATE TABLE IF NOT EXISTS stocks
-  (name TEXT PRIMARY KEY,
-  current_price INTEGER,
-  previous_price INTEGER)
-  ''')
-
-# 사용자가 보유한 주식의 수량을 저장할 데이터베이스 테이블 생성
-cur.execute('''
-  CREATE TABLE IF NOT EXISTS user_stocks
-  (user_id TEXT,
-  stock_name TEXT,
-  quantity INTEGER,
-  PRIMARY KEY (user_id, stock_name))
-  ''')
-
-# 'stocks' 테이블에서 데이터 조회
-cur.execute('SELECT * FROM stocks')
-stocks = cur.fetchall()
-
-# 만약 데이터가 없다면 초기 설정
-if len(stocks) == 0:
-  cur.execute(
-      '''
-    INSERT INTO stocks (name, current_price, previous_price)
-    VALUES (?, ?, ?)
-    ''', ('ENTER', 5, 5))
-  cur.execute(
-      '''
-  INSERT INTO stocks (name, current_price, previous_price)
-  VALUES (?, ?, ?)
-  ''', ('ENTER2', 5000, 5000))
-  cur.execute(
-      '''
-  INSERT INTO stocks (name, current_price, previous_price)
-  VALUES (?, ?, ?)
-  ''', ('ENTER3', 5000, 5000))
-  cur.execute(
-      '''
-  INSERT INTO stocks (name, current_price, previous_price)
-  VALUES (?, ?, ?)
-  ''', ('ENTER4', 5000, 5000))
-  cur.execute(
-      '''
-  INSERT INTO stocks (name, current_price, previous_price)
-  VALUES (?, ?, ?)
-  ''', ('ENTER5', 5000, 5000))
-  cur.execute(
-      '''
-  INSERT INTO stocks (name, current_price, previous_price)
-  VALUES (?, ?, ?)
-  ''', ('ENTER6', 5000, 5000))
-
-
-# 주식 거래를 처리하는 함수
-def trade_stock(user, stock_name, quantity, action):
-  # 주식 데이터 조회
-  cur.execute('SELECT * FROM stocks WHERE name=?', (stock_name))
-  stock = cur.fetchone()
-
-  # 주식이 없는 경우 오류
-  if stock is None:
-    st.error('주식이 존재하지 않습니다.')
-    return
-
-  # 사용자가 보유한 주식 수량 조회
-  cur.execute(
-      'SELECT quantity FROM user_stocks WHERE user_id=? AND stock_name=?',
-      (user['id'], stock_name))
-  user_stock = cur.fetchone()
-
-  # 매수
-  if action == 'buy':
-    if user['point'] < stock['current_price'] * quantity:
-      st.error('포인트가 부족합니다.')
-    else:
-      user['point'] -= stock['current_price'] * quantity
-      user['stockvalue'] += stock['current_price'] * quantity
-      if user_stock is None:
-        cur.execute(
-            'INSERT INTO user_stocks (user_id, stock_name, quantity) VALUES (?, ?, ?)',
-            (user['id'], stock_name, quantity))
-      else:
-        cur.execute(
-            'UPDATE user_stocks SET quantity=quantity+? WHERE user_id=? AND stock_name=?',
-            (quantity, user['id'], stock_name))
-      st.success('매수 완료!')
-
-  # 매도
-  elif action == 'sell':
-    if user_stock is None or user_stock['quantity'] < quantity:
-      st.error('보유 주식이 부족합니다.')
-    else:
-      user['point'] += stock['current_price'] * quantity
-      user['stockvalue'] -= stock['current_price'] * quantity
-      cur.execute(
-          'UPDATE user_stocks SET quantity=quantity-? WHERE user_id=? AND stock_name=?',
-          (quantity, user['id'], stock_name))
-      st.success('매도 완료!')
-
-
-con.close()
 
 
 def main():
@@ -133,7 +24,7 @@ def main():
   if "choose" not in st.session_state:
     st.session_state.choose = "로그인"
 
-  if "admin" not in st.session_state:
+  if "enteradmin" not in st.session_state:
     st.session_state.admin = False
 
   with st.sidebar:
@@ -262,53 +153,6 @@ def main():
   elif st.session_state.user is None:
     st.error('서비스를 이용하시려면 먼저 로그인해주세요.')
 
-  else:
-    if st.session_state.choose == "가상 주식 투자":
-      st.subheader("가상 주식 투자")
-
-      cur.execute('SELECT * FROM stocks')
-      stocks = cur.fetchall()
-      user_id = st.session_state.user['id']
-      for i in range(0, len(stocks), 2):
-        col1, col2 = st.columns(2)
-        stock_name = stocks[i][0]
-
-        with col1.expander(stock_name):
-          st.write(f'현재 주가: {stocks[i][1]}')
-          st.write(f'이전 주가: {stocks[i][2]}')
-
-          cur.execute(
-              'SELECT quantity FROM user_stocks WHERE user_id=? AND stock_name=?',
-              (user_id, stock_name))
-          user_stock = cur.fetchone()
-          st.write(
-              f'보유 주식 수: {user_stock["quantity"] if user_stock is not None else 0}'
-          )
-          quantity = st.number_input('수량', step=1, key=f'seulchankim_{i}')
-          if st.button('매수', key=f'buy_{i}'):
-            trade_stock(st.session_state.user, stock_name, quantity, 'buy')
-          if st.button('매도', key=f'sell_{i}'):
-            trade_stock(st.session_state.user, stock_name, quantity, 'sell')
-
-        if i + 1 < len(stocks):
-          stock_name = stocks[i + 1][0]
-          with col2.expander(stock_name):
-            st.write(f'현재 주가: {stocks[i+1][1]}')
-            st.write(f'이전 주가: {stocks[i+1][2]}')
-
-            cur.execute(
-                'SELECT quantity FROM user_stocks WHERE user_id=? AND stock_name=?',
-                (user_id, stock_name))
-            user_stock = cur.fetchone()
-            st.write(
-                f'보유 주식 수: {user_stock["quantity"] if user_stock is not None else 0}'
-            )
-            quantity = st.number_input('수량', step=1, key=f'seulchankim_{i+1}')
-            if st.button('매수', key=f'buy_{i+1}'):
-              trade_stock(st.session_state.user, stock_name, quantity, 'buy')
-            if st.button('매도', key=f'sell_{i+1}'):
-              trade_stock(st.session_state.user, stock_name, quantity, 'sell')
-
   con.close()
   user = st.session_state.user
   if user is not None:
@@ -330,7 +174,6 @@ def main():
     else:
       st.sidebar.markdown(f"**{user_name}님 환영합니다!**")
       st.sidebar.markdown(f"보유 포인트: {user_point}")
-      st.sidebar.markdown(f"보유 주식 가치: {user_stockvalue}")
   else:
     st.sidebar.markdown("로그인이 필요합니다.")
 
@@ -339,30 +182,3 @@ main()
 
 con.close()
 
-
-# 주가를 1분마다 랜덤하게 바꾸는 스레드
-def change_stock_price():
-  while True:
-    con = sqlite3.connect("database.db", check_same_thread=False)
-    cur = con.cursor()
-    cur.execute('SELECT * FROM stocks')
-    stocks = cur.fetchall()
-    for stock in stocks:
-      stock_name = stock[0]  # 'name' column
-      current_price = stock[1]  # 'current_price' column
-      previous_price = current_price
-      change_ratio = random.uniform(-0.1, 0.15)
-      current_price += current_price * change_ratio
-      cur.execute(
-          '''
-          UPDATE stocks
-          SET current_price = ?, previous_price = ?
-          WHERE name = ?
-          ''', (current_price, previous_price, stock_name))
-    con.commit()
-    con.close()
-    time.sleep(60)
-
-
-# 스레드 시작
-threading.Thread(target=change_stock_price).start()
