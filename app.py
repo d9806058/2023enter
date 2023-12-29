@@ -160,14 +160,7 @@ def main():
     con = sqlite3.connect("database.db", check_same_thread=False)
     cur = con.cursor()
 
-    # Get user info from the database
-    cur.execute(
-        f"SELECT name, point, stockvalue FROM users WHERE id = {user['id']}")
-    user_info = cur.fetchone()
-
-    user_name = user_info[0]
-    user_point = user_info[1]
-    user_stockvalue = user_info[2]
+  
 
     if st.session_state.admin:
       st.sidebar.markdown("**관리자 계정으로 로그인 상태입니다.**")
