@@ -180,5 +180,4 @@ def main():
 
 main()
 
-con.close()
 
