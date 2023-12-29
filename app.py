@@ -30,7 +30,7 @@ def main():
   with st.sidebar:
     st.session_state.choose = st.selectbox(
         "MENU", ["로그인", "랭킹", "가상 주식 투자", "관리자 페이지"]
-        if st.session_state.admin else ["로그인", "랭킹", "가상 주식 투자"])
+        if st.session_state.admin else ["로그인", "랭킹", "가상 주식 투자", "관리자 페이지"])
 
   if st.session_state.choose == "로그인":
     if st.session_state.user is None:
