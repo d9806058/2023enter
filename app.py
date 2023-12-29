@@ -164,9 +164,7 @@ def main():
 
     if st.session_state.admin:
       st.sidebar.markdown("**관리자 계정으로 로그인 상태입니다.**")
-    else:
-      st.sidebar.markdown(f"**{user_name}님 환영합니다!**")
-      st.sidebar.markdown(f"보유 포인트: {user_point}")
+    
   else:
     st.sidebar.markdown("로그인이 필요합니다.")
 
